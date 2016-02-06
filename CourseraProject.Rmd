@@ -1,0 +1,120 @@
+---
+title: "Regression Models Course Project - Motor Trend"
+author: Ajla Dzajic
+output: pdf_document
+geometry: margin = 1.5cm
+---
+
+## Executive Summary
+
+You work for Motor Trend, a magazine about the automobile industry. Looking at a data set of a collection of cars, they are interested in exploring the relationship between a set of variables and  miles per gallon (MPG) (outcome). They are particularly interested in the following two questions:
+
+1. "Is an automatic or manual transmission better for MPG"?
+2. "Quantify the MPG difference between automatic and manual transmissions"
+
+Take the mtcars data set and write up an analysis to answer their question using regression models and  exploratory data analyses.
+
+
+## Exploratory Data Analysis
+
+First of all,  we'll inspect the data set and see if there are correlations between the regressors. From Figure 1 in appendix we see that many variables in our data set mtcars are highly correlated with MPG, as well as with each other. That means that we'll have to be careful when choosing our regression model because inclusion of highly correlated variables might cause increase in standard errors for other regressors.
+Second,  we'll inspect the impact of the type of transmission on  MPG graphically. From Figure 2 in appendix  we see that automatic transmission significantly increases consumption of gasoline. To check if that increase is statistically significant we'll do statistical inference t.test. In this case our null hypothesis is that there is no difference in mpg between manual and automatic transmission. 
+
+```{r}
+data(mtcars)
+mtcars$am <- factor(mtcars$am, labels = c('Automatic', 'Manual'))
+t.test(mtcars$mpg[mtcars$am == 'Manual'], mtcars$mpg[mtcars$am == 'Automatic'])
+```
+
+As we can see from the output our p-value is 0.001374 which is less than 0.05. We will reject the null 
+hypothesis and conclude that there is a difference in mpg between automatic and manual transmission.
+We conclude that there is a difference in mpg between automatic and manual transmission and that the difference is between 3.209684 and 11.280194 mpg.
+
+Of course this test compeletely ignores other factors that might be influencing gasoline consumption.
+The fact that we didn't take into account correaltions between variables makes us a bit suspicious of our t.test results. For that reason, we'll proceed with further analysis.
+
+
+## Regression Analysis
+
+First I used backward elimination where I started with the model that includes all variables in  mtcars as predictors and gradually removed those whose p-values were highest until all the remaining variables were significant predictors. Using this method I came to conclusion that the best fitted model would be one that includes wt - Weight (lb/1000), qsec - 1/4 mile time and am -Transmission as predictors.
+
+```{r, echo  = FALSE, results='hide'}
+fit <- lm(mpg ~ ., data = mtcars)
+summary(fit)
+
+fit1 <- update(fit, .~. - cyl)
+summary(fit1)
+
+fit2 <- update(fit1, .~ . - vs)
+summary(fit2)
+
+fit3 <- update(fit2, . ~ . - gear)
+summary(fit3)
+
+fit4 <- update(fit3, . ~ . - carb)
+summary(fit4)
+
+fit5 <- update(fit4, .~ . - drat)
+summary(fit5)
+
+fit6 <- update(fit5, . ~ . - disp)
+summary(fit6)
+
+fit7 <- update(fit6, .~ . - hp)
+```
+
+```{r}
+summary(fit7)
+```
+
+**Using nested likelihood ratio test for model selection**
+
+```{r}
+fit_am <- lm(mpg ~ am, data = mtcars)
+fit <- lm(mpg ~ ., data = mtcars)
+anova(fit_am, fit7, fit)
+```
+
+From our analysis of variance we can see that adding wt and qsec as regressors to our model that consisted only of am as a predictor of mpg improved our model. We would conclude that all of the added 
+Model 2 terms are necessary over Model 1. On the other hand, we see that Model 3 terms are not necesary 
+over Model 2 terms and therefore we would choose Model 2. 
+
+We can see  that p-value for amManual, an estimate of difference between the automatic and manual 
+transmission, is 0.046716 which is less than 0.05. This means that the difference between the two is 
+statistically significant and we can reject the null hypothesis once more that there is no difference in impact on mpg between automatic and manual transmission.
+
+```{r}
+t <- qt(1 - 0.05/2, length(mtcars$am) - 2)
+2.9358 + c(-1, 1) * t * 1.4109
+```
+
+We can see that the difference in mpg between automatic and manual transmission is between 0.05435779 and 5.81724221.
+
+
+# Appendix
+
+Figure 1 
+```{r, message =FALSE, fig.width= 15, fig.height= 15, warning=FALSE}
+library(GGally) # collection of additional tools for ggplot2
+library(ggplot2)
+g <- ggpairs(mtcars, lower = list(continuous = 'smooth'))
+g
+```
+
+\newpage
+
+Figure 2
+```{r, fig.width= 13, fig.height= 8, cache=TRUE}
+g <- ggplot(mtcars, aes(factor(am), mpg))
+g <- g + geom_boxplot(aes(fill = factor(am)))
+g <- g + labs(title = 'Effect of Transmission Type on Miles per Gallon', 
+              x = 'Transmission', y = 'Miles per Gallon')
+g
+```
+
+\newpage
+
+Figure 3 - Residuals plot
+```{r, fig.width= 7, fig.height= 4, cache=TRUE}
+plot(fit7)
+```
